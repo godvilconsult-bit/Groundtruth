@@ -1,0 +1,24 @@
+{
+  "name": "@groundtruth/qa",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The QA pipeline. Composable stages with per-stage metrics, testable without a queue or a database.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@groundtruth/domain": "0.1.0",
+    "@groundtruth/spec": "0.1.0"
+  }
+}

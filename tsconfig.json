@@ -11,6 +11,9 @@
       "path": "./packages/collector-core"
     },
     {
+      "path": "./packages/qa"
+    },
+    {
       "path": "./apps/cli"
     }
   ]

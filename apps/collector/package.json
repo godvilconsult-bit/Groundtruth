@@ -19,6 +19,7 @@
   "devDependencies": {
     "@preact/preset-vite": "^2.9.3",
     "@testing-library/preact": "^3.2.4",
+    "fake-indexeddb": "^6.2.5",
     "happy-dom": "^20.11.2",
     "vite": "^6.0.7"
   }

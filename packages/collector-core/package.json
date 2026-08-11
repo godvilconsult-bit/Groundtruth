@@ -22,5 +22,8 @@
   "dependencies": {
     "@groundtruth/domain": "0.1.0",
     "@groundtruth/spec": "0.1.0"
+  },
+  "devDependencies": {
+    "happy-dom": "^20.11.2"
   }
 }

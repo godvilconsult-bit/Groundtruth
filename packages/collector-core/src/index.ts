@@ -64,3 +64,16 @@ export {
   type PackUpdateResult,
   type EvaluateOptions,
 } from './ward-pack.js';
+
+export { Uuidv7Generator, uuidv7, isUuidv7, timestampOf, type Uuidv7Options } from './uuidv7.js';
+
+export {
+  CaptureSession,
+  MemorySequenceStore,
+  type Position,
+  type CaptureInput,
+  type CapturedObservation,
+  type SequenceStore,
+  type CaptureSessionOptions,
+} from './capture.js';
+

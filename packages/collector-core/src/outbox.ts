@@ -84,6 +84,14 @@ export interface ClaimOptions {
   /** Chunk ceiling. 64 KB by default: a 2G drop mid-chunk loses under a second. */
   readonly maxBytes?: number;
   readonly maxItems?: number;
+  /**
+   * Restrict to certain kinds.
+   *
+   * Used to defer MEDIA on a metered connection while still sending observations:
+   * the attributes, position and timestamp are the irreplaceable part, and they are
+   * small. A photo can wait for wifi; a visit cannot wait at all.
+   */
+  readonly kinds?: readonly OutboxItemKind[];
 }
 
 /** 64 KB — small enough that a dropped 2G connection wastes little, large enough
@@ -139,7 +147,10 @@ export class Outbox {
     const maxItems = options.maxItems ?? 100;
 
     const all = await this.#store.list();
-    const pending = all.filter((i) => i.state === 'PENDING');
+    const kinds = options.kinds;
+    const pending = all.filter(
+      (i) => i.state === 'PENDING' && (kinds === undefined || kinds.includes(i.kind)),
+    );
 
     const claimed: OutboxItem[] = [];
     let bytes = 0;

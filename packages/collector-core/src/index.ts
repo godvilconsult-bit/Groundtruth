@@ -19,6 +19,16 @@ export {
 } from './backoff.js';
 
 export {
+  SyncEngine,
+  type SyncTransport,
+  type TransportOutcome,
+  type ConnectionInfo,
+  type SyncEngineOptions,
+  type RunContext,
+  type RunResult,
+} from './sync-engine.js';
+
+export {
   Outbox,
   MemoryOutboxStore,
   DEFAULT_CHUNK_BYTES,

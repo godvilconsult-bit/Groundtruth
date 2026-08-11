@@ -10,6 +10,7 @@
 import pg from 'pg';
 import { ingest } from './ingest.js';
 import { publishSpecs } from './publish-spec.js';
+import { runQa } from './qa-run.js';
 
 function parseArgs(argv: readonly string[]): Map<string, string> {
   const args = new Map<string, string>();
@@ -91,6 +92,53 @@ async function commandIngest(args: Map<string, string>): Promise<void> {
   }
 }
 
+async function commandQa(args: Map<string, string>): Promise<void> {
+  const limit = Number(args.get('limit') ?? 5000);
+  if (!Number.isInteger(limit) || limit < 1) throw new Error('--limit must be a positive integer');
+
+  const client = connect();
+  await client.connect();
+  try {
+    process.stdout.write('running QA pipeline over pending observations...\n\n');
+    const report = await runQa(client, { limit });
+
+    const row = (label: string, value: string | number) =>
+      process.stdout.write(`  ${label.padEnd(26)} ${String(value)}\n`);
+
+    row('evaluated', report.evaluated);
+    row('passed', report.passed);
+    row('flagged for review', report.flagged);
+    row('rejected', report.rejected);
+    row('selected for re-survey', report.selectedForResurvey);
+    row('elapsed', `${report.elapsedMs} ms`);
+
+    // Per-stage counts are operational data: a stage that suddenly rejects half a
+    // ward is either catching a real collection problem or is itself broken, and
+    // the numbers are the only way to tell which.
+    const stages = Object.entries(report.metrics.byStage);
+    if (stages.length > 0) {
+      process.stdout.write('\n  per stage (pass/flag/reject):\n');
+      for (const [name, counts] of stages) {
+        process.stdout.write(
+          `    ${name.padEnd(26)} ${counts.pass}/${counts.flag}/${counts.reject}\n`,
+        );
+      }
+    }
+
+    // The reason-code distribution is where a collector converging on reviewer
+    // preferences becomes visible (RISKS.md R-007).
+    const reasons = Object.entries(report.metrics.byReason).sort((a, b) => b[1] - a[1]);
+    if (reasons.length > 0) {
+      process.stdout.write('\n  reason codes:\n');
+      for (const [code, count] of reasons) {
+        process.stdout.write(`    ${code.padEnd(32)} ${count}\n`);
+      }
+    }
+  } finally {
+    await client.end();
+  }
+}
+
 async function commandVerifyChain(): Promise<void> {
   const client = connect();
   await client.connect();
@@ -149,6 +197,9 @@ async function main(): Promise<void> {
     case 'publish-spec':
       await commandPublishSpec();
       break;
+    case 'qa':
+      await commandQa(args);
+      break;
     case 'verify-chain':
       await commandVerifyChain();
       break;
@@ -157,6 +208,7 @@ async function main(): Promise<void> {
         'Ground Truth CLI\n\n' +
           '  gt publish-spec\n' +
           '  gt ingest [--count N] [--collectors N] [--seed N]\n' +
+          '  gt qa [--limit N]\n' +
           '  gt verify-chain\n',
       );
       process.exitCode = command === undefined ? 1 : 2;

@@ -14,7 +14,8 @@
   "dependencies": {
     "@groundtruth/domain": "0.1.0",
     "pg": "^8.13.1",
-    "@groundtruth/spec": "0.1.0"
+    "@groundtruth/spec": "0.1.0",
+    "@groundtruth/qa": "0.1.0"
   },
   "devDependencies": {
     "@types/pg": "^8.11.10"

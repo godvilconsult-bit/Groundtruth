@@ -90,9 +90,70 @@ export function generateObservations(options: GeneratorOptions): SyntheticObserv
   const sequences = new Array<number>(collectors).fill(0);
   const observations: SyntheticObservation[] = [];
 
+  // Each collector walks their own route, and time advances with distance.
+  //
+  // The naive version — a random place every 25 seconds — makes mappers teleport
+  // across the ward, and QA's temporal stage correctly rejected a third of it. Test
+  // data that cannot pass the pipeline tells you nothing about the pipeline; worse,
+  // it trains you to ignore a real signal as noise.
+  const WALKING_SPEED_MPS = 1.2;
+  const DWELL_MS = 45_000;
+  const METRES_PER_DEG = 111_320;
+
+  // Deal places to collectors, then order each collector's list as a nearest-
+  // neighbour walk so consecutive observations are actually adjacent.
+  const routes: number[][] = Array.from({ length: collectors }, () => []);
+  for (let placeId = 0; placeId < placeCount; placeId += 1) {
+    routes[placeId % collectors]!.push(placeId);
+  }
+  for (const route of routes) {
+    for (let i = 1; i < route.length; i += 1) {
+      let nearest = i;
+      let best = Number.POSITIVE_INFINITY;
+      const from = places[route[i - 1]!]!;
+      for (let j = i; j < route.length; j += 1) {
+        const candidate = places[route[j]!]!;
+        const d = (candidate.lon - from.lon) ** 2 + (candidate.lat - from.lat) ** 2;
+        if (d < best) {
+          best = d;
+          nearest = j;
+        }
+      }
+      [route[i], route[nearest]] = [route[nearest]!, route[i]!];
+    }
+  }
+
+  const routeCursor = new Array<number>(collectors).fill(0);
+  const clockMs = new Array<number>(collectors).fill(start);
+  const lastPlace: ({ lon: number; lat: number } | null)[] = new Array(collectors).fill(null);
+
   for (let i = 0; i < count; i += 1) {
-    const placeId = Math.floor(random() * placeCount);
+    const collectorIndex = i % collectors;
+    const route = routes[collectorIndex]!;
+    if (route.length === 0) continue;
+
+    // Revisits happen: a mapper returns to a place, which is how independent
+    // observations of one feature arise in the first place.
+    const revisit = random() < 0.35 && routeCursor[collectorIndex]! > 0;
+    const cursor = revisit
+      ? Math.floor(random() * routeCursor[collectorIndex]!)
+      : routeCursor[collectorIndex]! % route.length;
+    if (!revisit) routeCursor[collectorIndex] = routeCursor[collectorIndex]! + 1;
+
+    const placeId = route[cursor]!;
     const place = places[placeId]!;
+
+    // Advance the clock by how long the walk would actually take.
+    const previous = lastPlace[collectorIndex];
+    const metres = previous
+      ? Math.hypot(
+          (place.lon - previous.lon) * METRES_PER_DEG * Math.cos((place.lat * Math.PI) / 180),
+          (place.lat - previous.lat) * METRES_PER_DEG,
+        )
+      : 0;
+    clockMs[collectorIndex] =
+      clockMs[collectorIndex]! + (metres / WALKING_SPEED_MPS) * 1000 + DWELL_MS;
+    lastPlace[collectorIndex] = { lon: place.lon, lat: place.lat };
 
     // Reported accuracy: mostly good, with a realistic tail of poor urban fixes.
     const gpsAccuracyM = Number((2 + random() ** 3 * 28).toFixed(2));
@@ -109,7 +170,6 @@ export function generateObservations(options: GeneratorOptions): SyntheticObserv
     const lon = place.lon + dLon;
     const lat = place.lat + dLat;
 
-    const collectorIndex = Math.floor(random() * collectors);
     sequences[collectorIndex] = (sequences[collectorIndex] ?? 0) + 1;
 
     observations.push({
@@ -118,8 +178,9 @@ export function generateObservations(options: GeneratorOptions): SyntheticObserv
       lon,
       lat,
       gpsAccuracyM,
-      // Spread across a working day, in order, so temporal checks have real input.
-      capturedAt: new Date(start + i * 25_000 + Math.floor(random() * 8_000)),
+      // Derived from the walk, not from a fixed cadence: time advances by the
+      // distance covered at walking pace plus the dwell needed to observe.
+      capturedAt: new Date(clockMs[collectorIndex] as number),
       deviceSequence: sequences[collectorIndex] as number,
       collectorIndex,
       specVersion: formatSpecVersion(place.featureClass, 1, 0),
@@ -128,7 +189,9 @@ export function generateObservations(options: GeneratorOptions): SyntheticObserv
     });
   }
 
-  return observations;
+  // Sorted by capture time so the batch resembles a real sync: several collectors'
+  // days interleaved, each internally ordered.
+  return observations.sort((a, b) => a.capturedAt.getTime() - b.capturedAt.getTime());
 }
 
 /** WKT matching the geometry each class requires. */

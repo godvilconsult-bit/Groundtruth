@@ -366,3 +366,89 @@ runner's `search_path`*, which is not the path any application role will use.
 **Consequence:** Phase 1 should schema-qualify type references in DDL rather than
 rely on `search_path`, and any future shared type belongs in `public` alongside this
 one.
+
+---
+
+## D-013 — `geom_utm` is maintained by trigger, not a GENERATED column
+
+**Date:** 2026-08-11 · **Phase:** 1
+
+The brief asks for a generated ARC 1960 / UTM 37S column (EPSG:21037, the correct
+zone for Tanga at ~39°E). PostgreSQL rejects it: `ST_Transform` is `STABLE`, not
+`IMMUTABLE`, because it reads `spatial_ref_sys`, and generated columns require
+immutability.
+
+The common workaround is an `IMMUTABLE`-marked wrapper. That is a lie to the planner
+with a real consequence: an index could silently retain values computed under a
+superseded projection definition, and nothing would report the inconsistency.
+
+A `BEFORE INSERT OR UPDATE OF geom` trigger costs one function call per write and
+keeps the column correct by construction. Applied to both `feature` and `observation`.
+
+---
+
+## D-014 — `sha256_hex` domain for content-addressed media
+
+**Date:** 2026-08-11 · **Phase:** 1
+
+`media_refs` is an array of SHA-256 digests. Validating each element with a CHECK
+constraint is not expressible — CHECK cannot contain a subquery, and there is no
+scalar way to test every element of an array inline.
+
+A domain applies its constraint per element as the array is constructed, so one
+malformed digest fails the insert. This matters because content addressing is what
+makes media uploads dedupe and resume over 2G (ADR-0002); a malformed digest means
+the client's addressing is broken, which should fail loudly at ingest rather than
+surface later as an unresumable upload.
+
+---
+
+## D-015 — Single-link clustering for Phase 1 matching, with tolerances widened by reported GPS accuracy
+
+**Date:** 2026-08-11 · **Phase:** 1
+
+Observation-to-feature matching uses single-link agglomeration over per-class
+distance tolerances (6–25 m), with the tolerance widened by the better of the two
+observations' reported GPS accuracy.
+
+**Why accuracy-aware.** Two readings 10 m apart taken with ±15 m fixes are entirely
+consistent with one gate; the same 10 m gap with ±2 m fixes is two gates. A fixed
+tolerance is wrong in both directions at once.
+
+**Why single-link.** Observations strung along a road segment are a legitimate chain,
+and centroid-link would split them arbitrarily. The known weakness is excessive
+chaining in dense data; accepted at these tolerances, and exactly what QA stage 4 and
+human adjudication exist to catch.
+
+**Why tolerances are conservative.** Merging two distinct places is far more damaging
+than failing to merge one: a wrong merge destroys a real place and averages two
+truths into a falsehood, while a missed merge leaves two lower-confidence records
+that re-survey reconciles. The 1,000-observation ingest shows **+8 drift on 493 true
+places — under-merging, the safe direction.**
+
+---
+
+## D-016 — Ingest batches its writes; sequential round trips dominated everything
+
+**Date:** 2026-08-11 · **Phase:** 1
+
+The first working ingest took **373 seconds** for 1,000 observations. The cause was
+not query cost but network latency: three round trips per feature (insert, link
+observations, accrue payment) against a database in Frankfurt is ~1,500 sequential
+round trips at ~230 ms each.
+
+Resolving all clusters in memory, minting feature ids client-side, and writing three
+bulk statements per chunk inside one transaction brought it to **10.2 seconds — 37×
+— with byte-identical output** (501 clusters, 309 accepted, 0.575 mean confidence).
+
+Two things worth carrying forward:
+
+- **Client-minted ids are what make batching possible.** Reading ids back from
+  `RETURNING` also forced a per-row round trip *and* was unsound: PostgreSQL does not
+  guarantee `RETURNING` order matches a multi-row `VALUES` list, so zipping by index
+  would eventually attach observations to the wrong features. Fixed alongside.
+- **One transaction, not many.** A half-materialised batch is worse than none: the
+  observations look processed while their features do not exist.
+
+Phase 3's QA pipeline processes far more per run than this. Getting the write shape
+right before that arrives is cheaper than retrofitting it into seven job stages.

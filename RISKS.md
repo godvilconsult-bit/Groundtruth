@@ -310,3 +310,37 @@ privilege requirements in D-010.
 
 **Note:** this concerns *production* data only. Development against synthetic
 fixtures raises none of it, so it does not block Phase 1.
+
+**Measured 2026-08-11:** round-trip latency to eu-central-1 from the development
+machine is ~230 ms, which made a naive ingest 37× slower than a batched one (D-016).
+Latency from Tanzania to Frankfurt will be worse. This is not itself a reason to move
+— the collection app is offline-first and syncs in batches — but it does mean the
+review console (Phase 3), where a reviewer works interactively against a target of
+100 observations per hour, will feel every round trip. Worth measuring from Tanga
+before the console's interaction design is settled.
+
+---
+
+## R-012 — Append-only tables cannot be cleaned up, including by tests
+
+**Severity:** low · **Phase noticed:** 1 · **Status:** handled, with a caveat
+
+`payment_ledger`, `audit_log`, and `audit_anchor` refuse UPDATE and DELETE by trigger.
+This is correct and is the point. It also means integration tests cannot tear down
+their own ledger rows, and a failed teardown leaves residue that later runs trip over
+via the one-accrual-per-observation unique index.
+
+Handled by having the test suite disable the ledger's guard explicitly during
+teardown, as the role that owns the table. Audit rows are deliberately **not**
+removed — deleting them would break the hash chain for every subsequent row.
+
+**The caveat worth stating:** the ability to disable those triggers is exactly the
+privilege an attacker needs, and the test suite demonstrates the manoeuvre in
+readable form. That is not a new weakness — it is R-002 restated — but it does mean
+the production deployment must ensure no application role can disable triggers, and
+that trigger-disabling is itself an audited event. Not yet built.
+
+**Residue note:** one early test run failed teardown before this was handled, leaving
+~20 orphan features and 8 unlinked observations in the development database. Harmless
+synthetic data, but it inflates counts when eyeballing tables and should be cleared
+before anyone uses the dev database for a demo.

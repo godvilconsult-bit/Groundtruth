@@ -1,0 +1,21 @@
+{
+  "name": "@groundtruth/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Operational CLI. The interfaces layer: wires infrastructure to domain rules, and contains no business rules of its own.",
+  "bin": {
+    "gt": "./dist/main.js"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "ingest": "node --env-file-if-exists=../../.env dist/main.js ingest"
+  },
+  "dependencies": {
+    "@groundtruth/domain": "0.1.0",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.10"
+  }
+}

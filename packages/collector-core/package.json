@@ -12,12 +12,15 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -b",
     "test": "vitest run"
   },
   "dependencies": {
-    "@groundtruth/domain": "0.1.0"
+    "@groundtruth/domain": "0.1.0",
+    "@groundtruth/spec": "0.1.0"
   }
 }

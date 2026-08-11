@@ -39,3 +39,11 @@ export {
   type EnqueueInput,
   type ClaimOptions,
 } from './outbox.js';
+
+export {
+  ObservationForm,
+  SUPPORTED_WIDGETS,
+  type Locale,
+  type FormField,
+  type FormOption,
+} from './form-model.js';

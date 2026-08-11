@@ -1,0 +1,24 @@
+{
+  "name": "@groundtruth/spec",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The v1 Data Collection Specification, and the validator that enforces it. Application layer: implements a domain port using JSON Schema.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@groundtruth/domain": "0.1.0",
+    "ajv": "^8.17.1"
+  }
+}

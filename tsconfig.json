@@ -1,7 +1,14 @@
 {
   "files": [],
   "references": [
-    { "path": "./packages/domain" },
-    { "path": "./apps/cli" }
+    {
+      "path": "./packages/domain"
+    },
+    {
+      "path": "./packages/spec"
+    },
+    {
+      "path": "./apps/cli"
+    }
   ]
 }

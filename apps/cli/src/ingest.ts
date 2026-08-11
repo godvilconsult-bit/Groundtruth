@@ -20,6 +20,7 @@ import {
   isExportable,
   type MatchCandidate,
 } from '@groundtruth/domain';
+import { SpecValidator, type FeatureClassSpec } from '@groundtruth/spec';
 import { generateObservations, type SyntheticObservation } from './synthetic.js';
 
 const CHUMBAGENI = '00000000-0000-4000-8000-000000000003';
@@ -40,7 +41,36 @@ export interface IngestReport {
   readonly acceptedFeatures: number;
   readonly meanConfidence: number;
   readonly auditRowsWritten: number;
+  readonly schemaRejected: number;
   readonly elapsedMs: number;
+}
+
+/**
+ * Load the LIVE specification from the database, not from the repo.
+ *
+ * ADR-0003: the spec is data. What the repo holds is what we intend to publish;
+ * what `feature_class_schema` holds is what is actually in force. Validating against
+ * the repo would let a server validate observations under a spec no client was ever
+ * given.
+ */
+async function loadLiveValidator(client: pg.Client): Promise<SpecValidator> {
+  const { rows } = await client.query(
+    `SELECT feature_class, spec_version, major, minor, json_schema, ui_hints, min_app_version
+       FROM gt.feature_class_schema
+      WHERE retired_at IS NULL`,
+  );
+  const validator = new SpecValidator();
+  for (const row of rows) {
+    validator.register({
+      featureClass: row.feature_class,
+      major: row.major,
+      minor: row.minor,
+      minAppVersion: row.min_app_version,
+      jsonSchema: row.json_schema,
+      uiHints: row.ui_hints,
+    } as FeatureClassSpec);
+  }
+  return validator;
 }
 
 export async function ingest(client: pg.Client, options: IngestOptions): Promise<IngestReport> {
@@ -52,8 +82,25 @@ export async function ingest(client: pg.Client, options: IngestOptions): Promise
   // Attribute every audit row to this run rather than to a database login.
   await client.query("SELECT set_config('gt.actor', $1, false)", [`cli:ingest:${syncBatchId}`]);
 
-  const observations = generateObservations(options);
+  const generated = generateObservations(options);
   const collectorIds = await ensureCollectors(client, options.collectors);
+
+  // QA stage 1 in embryo: schema validation against the spec version each
+  // observation was collected under — never against the current one. Phase 3 moves
+  // this into a BullMQ stage with per-stage metrics; the rule does not change.
+  //
+  // Rejected observations are dropped here rather than stored, because the Phase 1
+  // ingest has no review queue to route them to. That is a deliberate Phase 1
+  // limitation, not the eventual behaviour: an observation is a fact even when it
+  // fails validation, and Phase 3 must persist it as FLAGGED for adjudication.
+  const validator = await loadLiveValidator(client);
+  const observations: SyntheticObservation[] = [];
+  let schemaRejected = 0;
+  for (const observation of generated) {
+    const result = validator.validate(observation.specVersion, observation.rawAttributes);
+    if (result.valid) observations.push(observation);
+    else schemaRejected += 1;
+  }
 
   const observationIds = await insertObservations(
     client, observations, collectorIds, syncBatchId, batchSize,
@@ -76,6 +123,7 @@ export async function ingest(client: pg.Client, options: IngestOptions): Promise
     acceptedFeatures: materialised.accepted,
     meanConfidence: materialised.meanConfidence,
     auditRowsWritten: audit.rows[0].n as number,
+    schemaRejected,
     elapsedMs: Date.now() - started,
   };
 }

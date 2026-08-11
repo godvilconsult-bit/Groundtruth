@@ -9,6 +9,7 @@
 
 import pg from 'pg';
 import { ingest } from './ingest.js';
+import { publishSpecs } from './publish-spec.js';
 
 function parseArgs(argv: readonly string[]): Map<string, string> {
   const args = new Map<string, string>();
@@ -59,6 +60,7 @@ async function commandIngest(args: Map<string, string>): Promise<void> {
       process.stdout.write(`  ${label.padEnd(28)} ${String(value)}\n`);
 
     row('sync batch', report.syncBatchId);
+    row('schema-rejected', report.schemaRejected);
     row('observations inserted', report.observationsInserted);
     row('true places (generator)', report.truePlaces);
     row('clusters formed', report.clustersFormed);
@@ -110,6 +112,32 @@ async function commandVerifyChain(): Promise<void> {
   }
 }
 
+async function commandPublishSpec(): Promise<void> {
+  const client = connect();
+  await client.connect();
+  try {
+    const report = await publishSpecs(client);
+
+    if (report.rejected.length > 0) {
+      process.stderr.write('specification REJECTED — nothing was published\n\n');
+      for (const r of report.rejected) {
+        process.stderr.write(`  ${r.version}\n`);
+        for (const issue of r.issues) process.stderr.write(`      ${issue}\n`);
+      }
+      process.exitCode = 1;
+      return;
+    }
+
+    for (const v of report.published) process.stdout.write(`  published  ${v}\n`);
+    for (const v of report.alreadyPresent) process.stdout.write(`  unchanged  ${v}\n`);
+    process.stdout.write(
+      `\n${report.published.length} published, ${report.alreadyPresent.length} already live\n`,
+    );
+  } finally {
+    await client.end();
+  }
+}
+
 async function main(): Promise<void> {
   const [command, ...rest] = process.argv.slice(2);
   const args = parseArgs(rest);
@@ -118,12 +146,16 @@ async function main(): Promise<void> {
     case 'ingest':
       await commandIngest(args);
       break;
+    case 'publish-spec':
+      await commandPublishSpec();
+      break;
     case 'verify-chain':
       await commandVerifyChain();
       break;
     default:
       process.stderr.write(
         'Ground Truth CLI\n\n' +
+          '  gt publish-spec\n' +
           '  gt ingest [--count N] [--collectors N] [--seed N]\n' +
           '  gt verify-chain\n',
       );

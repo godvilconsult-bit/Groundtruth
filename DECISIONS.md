@@ -505,3 +505,47 @@ main argument against this choice, and it is not a small one. Logged against R-0
 
 **Unchanged by this:** ADR-0002's sync design and ADR-0003's spec versioning are both
 client-agnostic and survive intact. Nothing in `db/` or `packages/domain/` changes.
+
+---
+
+## D-018 — The v1 specification ships before the form renderer, and validation reads it from the database
+
+**Date:** 2026-08-11 · **Phase:** 2
+
+`feature_class_schema` was empty. A spec-driven form renderer with nothing to render
+cannot be built or tested, and QA stage 1 has nothing to validate against — so the
+specification itself is the dependency both sit on, and it goes first.
+
+`@groundtruth/spec` holds the six v1 classes as authored source; `gt.feature_class_schema`
+holds what is actually in force. **Validation loads from the database, never from the
+repo.** Validating against the repo would let the server judge observations under a
+specification no client was ever given — the two would diverge the first time a
+publish was forgotten, and every symptom would point somewhere else.
+
+**Publication is guarded twice, and the guards are different:**
+
+- *Publishability* — is the spec internally coherent? Every validated field
+  renderable, every rendered field validated, UI options matching the schema enum
+  exactly, both locales present. Returns a rejection; writes nothing. A whole bundle
+  is rejected when one class fails: shipping four of six classes leaves mappers
+  unable to collect the rest with no signal why.
+- *Immutability* — does this version already exist with different content? Throws,
+  because it means a published version was edited in place, and observations
+  reference their version forever.
+
+The mismatch case that matters most is UI options disagreeing with the schema enum:
+the form offers a value the server rejects, so the mapper's visit is lost after the
+fact, in the office, with no way to recover it.
+
+**Bug found in my own guard.** The immutability check compared `JSON.stringify` of
+the local spec against the stored row. `jsonb` is a parsed representation and
+normalises key order on storage, so the round-tripped document never matched
+byte-for-byte and **every** republish reported false drift. A guard that fires
+constantly is a guard people learn to bypass. Now compared canonically, with keys
+sorted recursively on both sides.
+
+**Phase 1 limitation, deliberately recorded:** schema-rejected observations are
+currently dropped rather than stored, because Phase 1 ingest has no review queue to
+route them to. That is not the eventual behaviour. An observation is a fact even when
+it fails validation, and Phase 3 must persist it as `FLAGGED` for adjudication rather
+than discard evidence.

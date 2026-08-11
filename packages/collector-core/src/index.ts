@@ -47,3 +47,20 @@ export {
   type FormField,
   type FormOption,
 } from './form-model.js';
+
+export {
+  WardPackManager,
+  MemoryWardPackStore,
+  evaluatePack,
+  compareAppVersions,
+  type WardPack,
+  type WardExtent,
+  type KnownFeature,
+  type WardPackStore,
+  type WardPackTransport,
+  type PackFetchOutcome,
+  type PackDecision,
+  type PackRejectionReason,
+  type PackUpdateResult,
+  type EvaluateOptions,
+} from './ward-pack.js';

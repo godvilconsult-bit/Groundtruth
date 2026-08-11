@@ -69,18 +69,21 @@ npm ci && npm run verify
 ```
 packages/domain/       entities, value objects, business rules
                        zero dependencies — enforced by package.json and ESLint
-packages/application/  use cases and ports                          (Phase 1)
-packages/infrastructure/  Postgres, S3, Redis adapters              (Phase 1)
-apps/api/              REST controllers, CLI, workers               (Phase 1)
-apps/console/          review console — Next.js + MapLibre          (Phase 3)
-apps/collector/        field collection app — Flutter, Android-first (Phase 2)
+                       imported by BOTH server and collector (D-017)
+packages/application/  use cases and ports                          (Phase 3)
+packages/infrastructure/  Postgres, S3, Redis adapters              (Phase 3)
+apps/cli/              ingest and operational commands
+apps/api/              REST controllers and workers                 (Phase 3)
+apps/console/          review console — also the supervisor surface (Phase 3)
+apps/collector/        TypeScript PWA + Capacitor, Android-first    (Phase 2)
 
 db/migrations/         plain SQL, run by node-pg-migrate
 db/seed/               development fixtures (Tanga ward)
-db/test/               privilege-barrier tests — need a live database
+db/test/               integration tests — need a live database
 
 tools/                 vocabulary-guard.mjs — the compliance CI check
 docs/adr/              architecture decision records
+docs/confidence-score-v1.md   published scoring contract
 ```
 
 Dependencies point inward only. `@groundtruth/domain` declares no dependencies, so
@@ -125,10 +128,13 @@ Runs the whole gate: compliance guard, lint, typecheck, tests. This is what CI r
 | Phase | Scope | State |
 | --- | --- | --- |
 | 0 | Foundations: monorepo, Compose, migrations, CI, ADRs | **complete** |
-| 1 | Canonical data core | not started |
-| 2 | Field collection app | not started |
-| 3 | QA pipeline and review console | not started |
+| 1 | Canonical data core, audit chain, ingest CLI | **complete** |
+| 2 | Field collection app (PWA + Capacitor, Android-first) | next |
+| 3 | QA pipeline, review console, supervisor surface | not started |
 | 4 | Licensing and delivery | not started |
+
+157 tests pass — 126 domain and compliance, 31 against live PostgreSQL + PostGIS.
+Domain-layer coverage 99.3% statements, 100% lines and functions.
 
 ## Licence
 

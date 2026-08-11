@@ -101,6 +101,24 @@ device in Tanga or an equivalent handset early — a spec-compliant emulator fig
 would be worthless. If the target proves unreachable, the honest response is to
 revise the target, not to quietly ship a device that dies at 14:00 mid-ward.
 
+**Update 2026-08-11 — this risk got harder, by our own choice.** D-017 replaces
+Flutter with a TypeScript PWA wrapped in Capacitor. A WebView UI costs more CPU and
+more battery than Flutter's native rendering, on a device that has little of either
+to spare. The reasons for the change are good (one implementation of the form
+renderer, direct reuse of `@groundtruth/domain`), but they are correctness and
+maintenance reasons, and they were paid for in watts.
+
+Two consequences for Phase 2:
+
+- The battery figure must be measured **early**, not at the end of Phase 2. If the
+  WebView overhead alone breaks the target, the choice needs revisiting while it is
+  still cheap to revisit — before the form renderer, queue, and blur pipeline are
+  built on it.
+- The track-recording path must avoid the WebView entirely where possible: the
+  Capacitor background-geolocation plugin should write positions to native storage
+  and hand them over in batches, rather than waking the JavaScript layer per fix.
+  Per-fix JS wakeups would be the single largest avoidable drain.
+
 ---
 
 ## R-005 — No authoritative ward geometry; Phase 0 seed is an approximation

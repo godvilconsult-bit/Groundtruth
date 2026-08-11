@@ -163,9 +163,10 @@ reachable as a later build target, and nothing in the design may assume Android-
 APIs without an abstraction — but iOS does not drive Phase 2 scope. Web is the review
 console's platform, and the review console's alone.
 
-**Status: awaiting confirmation.** If Web collection is a genuine requirement rather
-than an aspiration, this decision is wrong and Phase 2's architecture changes
-materially. Raised before implementation per working protocol item 6.
+**Status: SUPERSEDED by D-017.** Web was confirmed as a genuine requirement. The
+capability analysis above holds — browsers cannot do multi-hour background GPS — but
+the conclusion drawn from it was wrong, because it assumed Web meant *field
+collection*. It does not. See D-017.
 
 ---
 
@@ -452,3 +453,55 @@ Two things worth carrying forward:
 
 Phase 3's QA pipeline processes far more per run than this. Getting the write shape
 right before that arrives is cheaper than retrofitting it into seven job stages.
+
+---
+
+## D-017 — Web is supervisor/office and belongs to the review console; the collector is a TypeScript PWA wrapped with Capacitor
+
+**Date:** 2026-08-11 · **Phase:** 1 → 2 · **Supersedes:** D-007
+
+Two decisions, confirmed after raising D-007's objection.
+
+### Web is required, but not for field walking
+
+Web is for **ward supervisors, desk verification, and correcting flagged
+observations** — not for mappers walking routes. This resolves the capability
+tension in D-007 rather than fighting it: the thing browsers genuinely cannot do
+(multi-hour background GPS with the screen off) is not asked of them.
+
+**Consequence, and it removes work rather than adding it: there is no separate
+supervisor web app.** That surface is the Phase 3 review console with a ward-scoped
+supervisor role. The console already needs a map, an observation queue, side-by-side
+photo and attribute comparison, and keyboard-driven accept/reject — which is the
+supervisor's job description. A distinct third client would duplicate all of it and
+then drift, so that two surfaces disagree about what a flagged observation means.
+
+Supervisors get a role and a ward scope, not an application.
+
+### The collector is a TypeScript PWA, wrapped with Capacitor for Android
+
+Deviates from the brief's Flutter choice. The brief permits this with a stated
+reason, and there are two.
+
+**One codebase for the most correctness-critical component.** The spec-driven form
+renderer is where a bug corrupts collection across every feature class, silently and
+in the field. Flutter would put it in Dart while the server, the console, and the
+domain package are TypeScript — two implementations, two chances to diverge, no
+shared tests.
+
+**`@groundtruth/domain` becomes importable by the collector directly.** Feature
+classes and their required geometry, spec-version parsing and compatibility, and the
+provenance guard are already written, tested, and dependency-free. The device and the
+server then enforce identical rules from one source, which is exactly what ADR-0003's
+validate-twice design asks for and what a Dart client could only approximate.
+
+Capacitor supplies native Android background geolocation through a plugin, which is
+where continuous tracking is actually possible.
+
+**The cost, stated plainly because it is real and I recommended this:** a WebView UI
+on a 2 GB Android 9 handset is heavier than Flutter's native rendering, in both CPU
+and battery. This makes R-004's already-tight budget harder, not easier. It is the
+main argument against this choice, and it is not a small one. Logged against R-004.
+
+**Unchanged by this:** ADR-0002's sync design and ADR-0003's spec versioning are both
+client-agnostic and survive intact. Nothing in `db/` or `packages/domain/` changes.

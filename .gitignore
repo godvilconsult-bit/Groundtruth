@@ -18,12 +18,15 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 
-# Flutter (Phase 2)
-apps/collector/.dart_tool/
-apps/collector/build/
-apps/collector/.flutter-plugins*
-*.g.dart
-*.freezed.dart
+# Collector: PWA + Capacitor (Phase 2, see DECISIONS.md D-017)
+apps/collector/dist/
+apps/collector/.vite/
+apps/collector/android/app/build/
+apps/collector/android/build/
+apps/collector/android/.gradle/
+apps/collector/android/local.properties
+apps/collector/ios/App/Pods/
+apps/collector/ios/App/build/
 
 # Never commit collected field data or imagery
 *.mbtiles

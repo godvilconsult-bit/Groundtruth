@@ -1,0 +1,38 @@
+{
+  "name": "groundtruth",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ground Truth — verifiable geospatial data collection and licensing for East Africa",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/api",
+    "db"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b",
+    "clean": "tsc -b --clean",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "_comment:test:db": "Integration tests need DATABASE_URL and GT_EXPORT_DATABASE_URL. Vitest does not load arbitrary names from .env, so Node's native --env-file-if-exists supplies them. Skips itself when they are absent.",
+    "test:db": "node --env-file-if-exists=.env node_modules/vitest/vitest.mjs run db/test",
+    "guard": "node tools/vocabulary-guard.mjs",
+    "migrate": "npm run migrate --workspace @groundtruth/db",
+    "verify": "npm run guard && npm run lint && npm run typecheck && npm run test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@types/node": "^22.10.2",
+    "@vitest/coverage-v8": "^4.1.10",
+    "eslint": "^9.17.0",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.18.1",
+    "vitest": "^4.1.10"
+  }
+}

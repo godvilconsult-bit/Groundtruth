@@ -1,0 +1,93 @@
+# Ground Truth — development stack.
+#
+# `docker compose up` brings up the data platform and applies migrations, role
+# grants, and the Tanga development seed.
+#
+# The API service joins in Phase 1 and the review console in Phase 3 (see
+# DECISIONS.md D-006 and D-008): neither has anything to serve until the canonical
+# data core exists, and an empty container that must be kept green for three phases
+# is scaffolding for its own sake.
+
+name: groundtruth
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: gt-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-groundtruth}
+      POSTGRES_USER: ${POSTGRES_USER:-groundtruth}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required — copy .env.example to .env}
+      # Deterministic collation, so index ordering does not vary by host locale.
+      POSTGRES_INITDB_ARGS: '--locale=C.UTF-8 --encoding=UTF8'
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-groundtruth} -d ${POSTGRES_DB:-groundtruth}']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: gt-redis
+    # No persistence in dev: Redis holds BullMQ queues, which are rebuildable.
+    command: ['redis-server', '--save', '', '--appendonly', 'no']
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: gt-minio
+    command: ['server', '/data', '--console-address', ':9001']
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-groundtruth}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required — copy .env.example to .env}
+    ports:
+      - '${MINIO_PORT:-9000}:9000'
+      - '${MINIO_CONSOLE_PORT:-9001}:9001'
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  # One-shot: migrate, create login roles, seed. Exits 0 when the database is ready
+  # to use. `docker compose up` waits for it via depends_on.
+  migrator:
+    image: node:24-alpine
+    container_name: gt-migrator
+    working_dir: /repo
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-groundtruth}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-groundtruth}
+      GT_API_PASSWORD: ${GT_API_PASSWORD:?GT_API_PASSWORD is required}
+      GT_EXPORT_PASSWORD: ${GT_EXPORT_PASSWORD:?GT_EXPORT_PASSWORD is required}
+      GT_TILESERV_PASSWORD: ${GT_TILESERV_PASSWORD:?GT_TILESERV_PASSWORD is required}
+    volumes:
+      - .:/repo
+    command: >
+      sh -c "npm ci --no-audit --no-fund &&
+             npm run migrate:up  --workspace @groundtruth/db &&
+             npm run roles       --workspace @groundtruth/db &&
+             npm run seed        --workspace @groundtruth/db"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+volumes:
+  pgdata:
+  miniodata:

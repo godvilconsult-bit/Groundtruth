@@ -1,0 +1,31 @@
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+.env
+.env.*
+!.env.example
+
+.volumes/
+minio-data/
+pgdata/
+
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Flutter (Phase 2)
+apps/collector/.dart_tool/
+apps/collector/build/
+apps/collector/.flutter-plugins*
+*.g.dart
+*.freezed.dart
+
+# Never commit collected field data or imagery
+*.mbtiles
+/exports/
+/fixtures/media/

@@ -1,0 +1,113 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '24'
+
+jobs:
+  # Fast feedback: the compliance guard runs first and alone, because a cadastral
+  # vocabulary violation is a legal problem, not a style problem, and there is no
+  # point spending five minutes on tests before reporting it.
+  compliance:
+    name: Compliance guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: node tools/vocabulary-guard.mjs
+
+  static:
+    name: Lint and typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+
+  unit:
+    name: Domain unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run test:coverage
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: domain-coverage
+          path: coverage/
+          retention-days: 14
+
+  # Migrations must apply cleanly to an empty database, and the privilege barrier
+  # they establish must actually hold. Asserting the grants against a freshly
+  # migrated database is necessary but not sufficient — see RISKS.md R-001 for the
+  # restored-backup case, which is not yet covered.
+  migrations:
+    name: Migrations and privilege barrier
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: groundtruth_ci
+          POSTGRES_USER: groundtruth
+          POSTGRES_PASSWORD: ci-not-a-secret
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U groundtruth -d groundtruth_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgres://groundtruth:ci-not-a-secret@localhost:5432/groundtruth_ci
+      GT_EXPORT_DATABASE_URL: postgres://gt_exporter:ci-export-pw@localhost:5432/groundtruth_ci
+      GT_API_PASSWORD: ci-api-pw
+      GT_EXPORT_PASSWORD: ci-export-pw
+      GT_TILESERV_PASSWORD: ci-tiles-pw
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+
+      - name: Apply migrations
+        run: npm run migrate:up --workspace @groundtruth/db
+
+      - name: Migrations are reversible
+        run: |
+          npm run migrate:down --workspace @groundtruth/db -- --count 2
+          npm run migrate:up --workspace @groundtruth/db
+
+      - name: Create login roles
+        run: npm run roles --workspace @groundtruth/db
+
+      - name: Seed Tanga development ward
+        run: npm run seed --workspace @groundtruth/db
+
+      - name: Prove the ODbL privilege barrier holds (ADR-0001)
+        run: npm run test:db -- --reporter=verbose

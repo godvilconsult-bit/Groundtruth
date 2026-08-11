@@ -1,0 +1,17 @@
+# Normalise line endings to LF in the repository, regardless of contributor OS.
+# Without this, Windows checkouts commit CRLF and every cross-platform diff fills
+# with whole-file churn. Matches .editorconfig's end_of_line = lf.
+* text=auto eol=lf
+
+# Binary assets — never normalise, never diff as text.
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.webp   binary
+*.pdf    binary
+*.mbtiles binary
+*.gpkg   binary
+*.zip    binary
+
+# Generated: collapse in diffs and mark so reviewers skip it.
+package-lock.json -diff linguist-generated=true

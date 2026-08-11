@@ -1,0 +1,23 @@
+{
+  "name": "@groundtruth/collector-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Platform-agnostic collector logic: outbox, byte budget, backoff. No DOM, no Capacitor, no storage engine — those arrive as adapters.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@groundtruth/domain": "0.1.0"
+  }
+}

@@ -14,10 +14,13 @@ export default defineConfig({
       provider: 'v8',
       reportsOnly: false,
       reporter: ['text', 'lcov'],
-      // The domain layer is the only place business rules live, and it has no
-      // infrastructure excuses. It is held to a higher bar than anything else.
-      include: ['packages/domain/src/**/*.ts'],
-      exclude: ['**/*.test.ts', '**/index.ts'],
+      // Business rules live in packages/, and they have no infrastructure excuses:
+      // no database, no network, no clock. Held to a higher bar than app code.
+      // `v1.ts` is the specification document itself — data, not logic — so its
+      // coverage number would measure nothing; its correctness is asserted by
+      // v1.test.ts through checkPublishable instead.
+      include: ['packages/*/src/**/*.ts'],
+      exclude: ['**/*.test.ts', '**/index.ts', 'packages/spec/src/v1.ts'],
       thresholds: {
         lines: 90,
         functions: 90,

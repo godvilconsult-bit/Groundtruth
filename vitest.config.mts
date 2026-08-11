@@ -5,6 +5,7 @@ export default defineConfig({
     include: [
       'packages/**/src/**/*.test.ts',
       'apps/**/src/**/*.test.ts',
+      'apps/**/src/**/*.test.tsx',
       'tools/**/*.test.mjs',
       // Requires a live database; skips itself when DATABASE_URL is unset.
       'db/test/**/*.test.mjs',

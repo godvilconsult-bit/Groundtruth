@@ -1,0 +1,25 @@
+{
+  "name": "@groundtruth/collector",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Field collection app. Preact PWA, Android-first via Capacitor (DECISIONS D-017).",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@groundtruth/collector-core": "0.1.0",
+    "@groundtruth/domain": "0.1.0",
+    "@groundtruth/spec": "0.1.0",
+    "preact": "^10.25.4"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.9.3",
+    "@testing-library/preact": "^3.2.4",
+    "happy-dom": "^20.11.2",
+    "vite": "^6.0.7"
+  }
+}

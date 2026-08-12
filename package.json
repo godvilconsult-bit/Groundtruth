@@ -14,7 +14,7 @@
   ],
   "scripts": {
     "build": "tsc -b",
-    "typecheck": "tsc -b && npm run typecheck --workspace @groundtruth/collector",
+    "typecheck": "tsc -b && npm run typecheck --workspace @groundtruth/collector && npm run typecheck --workspace @groundtruth/console",
     "clean": "tsc -b --clean",
     "lint": "eslint .",
     "test": "vitest run",

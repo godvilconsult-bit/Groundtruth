@@ -52,3 +52,20 @@ export {
   MIN_SAMPLE_FOR_ANOMALY,
   type ResurveyPolicy,
 } from './stages/reputation.js';
+
+export {
+  reviewEffects,
+  validateReview,
+  summariseThroughput,
+  decisionForKey,
+  REVIEW_REASON,
+  REVIEW_KEYS,
+  RUBBER_STAMP_MS,
+  THROUGHPUT_TARGET_PER_HOUR,
+  InvalidReviewError,
+  type ReviewDecisionKind,
+  type ReviewReason,
+  type ReviewInput,
+  type ReviewEffects,
+  type ThroughputSummary,
+} from './review.js';

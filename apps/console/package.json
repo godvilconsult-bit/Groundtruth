@@ -1,0 +1,25 @@
+{
+  "name": "@groundtruth/console",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Review console and ward-supervisor surface (DECISIONS D-017).",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@groundtruth/domain": "0.1.0",
+    "@groundtruth/qa": "0.1.0",
+    "@groundtruth/spec": "0.1.0",
+    "preact": "^10.25.4"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.9.3",
+    "@testing-library/preact": "^3.2.4",
+    "happy-dom": "^20.11.2",
+    "vite": "^6.0.7"
+  }
+}

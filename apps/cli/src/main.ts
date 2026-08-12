@@ -11,6 +11,7 @@ import pg from 'pg';
 import { ingest } from './ingest.js';
 import { publishSpecs } from './publish-spec.js';
 import { runQa } from './qa-run.js';
+import { queueSummary } from './review-apply.js';
 
 function parseArgs(argv: readonly string[]): Map<string, string> {
   const args = new Map<string, string>();
@@ -139,6 +140,54 @@ async function commandQa(args: Map<string, string>): Promise<void> {
   }
 }
 
+async function commandReviewQueue(): Promise<void> {
+  const client = connect();
+  await client.connect();
+  try {
+    const summary = await queueSummary(client);
+    const throughput = await client.query(
+      `SELECT reviewer_id, sum(decisions)::int decisions,
+              round(avg(median_seconds), 1) median_seconds,
+              sum(suspiciously_fast)::int fast
+         FROM gt.review_throughput
+        GROUP BY reviewer_id
+        ORDER BY decisions DESC
+        LIMIT 10`,
+    );
+
+    process.stdout.write(`  waiting for review        ${summary.waiting}\n`);
+    process.stdout.write(`  currently claimed         ${summary.claimed}\n`);
+    process.stdout.write(
+      `  oldest waiting            ${summary.oldestWaitingHours ?? 0} hours\n`,
+    );
+
+    const reasons = Object.entries(summary.byReason).sort((a, b) => b[1] - a[1]);
+    if (reasons.length > 0) {
+      process.stdout.write('\n  why they are queued:\n');
+      for (const [code, count] of reasons) {
+        process.stdout.write(`    ${code.padEnd(32)} ${count}\n`);
+      }
+    }
+
+    if (throughput.rows.length > 0) {
+      // Median, not mean: waving through ninety and agonising over ten produces a
+      // flattering average. `fast` counts decisions too quick to have involved
+      // looking at anything.
+      process.stdout.write('\n  reviewer throughput (median s / rubber-stamped):\n');
+      for (const r of throughput.rows) {
+        process.stdout.write(
+          `    ${String(r.reviewer_id).slice(0, 8)}  ${String(r.decisions).padStart(5)} decisions  ` +
+            `${String(r.median_seconds).padStart(6)}s  ${r.fast} fast\n`,
+        );
+      }
+    } else {
+      process.stdout.write('\n  no decisions recorded yet\n');
+    }
+  } finally {
+    await client.end();
+  }
+}
+
 async function commandVerifyChain(): Promise<void> {
   const client = connect();
   await client.connect();
@@ -200,6 +249,9 @@ async function main(): Promise<void> {
     case 'qa':
       await commandQa(args);
       break;
+    case 'review-queue':
+      await commandReviewQueue();
+      break;
     case 'verify-chain':
       await commandVerifyChain();
       break;
@@ -209,6 +261,7 @@ async function main(): Promise<void> {
           '  gt publish-spec\n' +
           '  gt ingest [--count N] [--collectors N] [--seed N]\n' +
           '  gt qa [--limit N]\n' +
+          '  gt review-queue\n' +
           '  gt verify-chain\n',
       );
       process.exitCode = command === undefined ? 1 : 2;

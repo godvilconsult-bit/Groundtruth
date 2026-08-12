@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Ground Truth</string>
+    <string name="title_activity_main">Ground Truth</string>
+    <string name="package_name">tz.groundtruth.collector</string>
+    <string name="custom_url_scheme">tz.groundtruth.collector</string>
+</resources>

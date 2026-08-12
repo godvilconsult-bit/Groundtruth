@@ -1,0 +1,25 @@
+ext {
+    // Android 9 (API 28) is the target device in the brief. Capacitor's default of
+    // 23 would let the app install on hardware we have never tested and cannot
+    // support — an older WebView with different storage and geolocation behaviour
+    // is exactly where the offline guarantees would fail silently.
+    minSdkVersion = 28
+
+    // 36 rather than Capacitor's default 35: the installed SDK has 36 and 36.1, and
+    // C: has no room for another platform. Compiling against a newer platform is
+    // backwards compatible; minSdk governs what can install.
+    compileSdkVersion = 36
+    targetSdkVersion = 36
+
+    androidxActivityVersion = '1.9.2'
+    androidxAppCompatVersion = '1.7.0'
+    androidxCoordinatorLayoutVersion = '1.2.0'
+    androidxCoreVersion = '1.15.0'
+    androidxFragmentVersion = '1.8.4'
+    coreSplashScreenVersion = '1.0.1'
+    androidxWebkitVersion = '1.12.1'
+    junitVersion = '4.13.2'
+    androidxJunitVersion = '1.2.1'
+    androidxEspressoCoreVersion = '3.6.1'
+    cordovaAndroidVersion = '10.1.1'
+}

@@ -21,12 +21,23 @@ Thumbs.db
 # Collector: PWA + Capacitor (Phase 2, see DECISIONS.md D-017)
 apps/collector/dist/
 apps/collector/.vite/
-apps/collector/android/app/build/
-apps/collector/android/build/
+apps/console/dist/
+
+# Capacitor native projects ARE committed — they carry real configuration
+# (minSdk, target, permissions) that must be reviewable. Only build output and
+# machine-local paths are ignored.
+apps/collector/android/**/build/
 apps/collector/android/.gradle/
 apps/collector/android/local.properties
+apps/collector/android/app/src/main/assets/public/
+apps/collector/android/app/src/main/assets/capacitor.config.json
 apps/collector/ios/App/Pods/
 apps/collector/ios/App/build/
+
+# Built artefacts handed to people, not to git.
+build-output/
+*.apk
+*.aab
 
 # Never commit collected field data or imagery
 *.mbtiles

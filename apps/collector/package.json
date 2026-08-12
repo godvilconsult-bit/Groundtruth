@@ -11,12 +11,15 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@capacitor/android": "^7.6.8",
+    "@capacitor/core": "^7.6.8",
     "@groundtruth/collector-core": "0.1.0",
     "@groundtruth/domain": "0.1.0",
     "@groundtruth/spec": "0.1.0",
     "preact": "^10.25.4"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.6.8",
     "@preact/preset-vite": "^2.9.3",
     "@testing-library/preact": "^3.2.4",
     "fake-indexeddb": "^6.2.5",
